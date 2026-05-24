@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
 import "./Course";
+import "./User";
 
 export interface EnrollmentDocument extends Document {
   studentId: Types.ObjectId;
