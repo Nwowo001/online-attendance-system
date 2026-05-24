@@ -1,4 +1,6 @@
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
+import { CourseDocument } from "./Course";
+import { UserDocument } from "./User";
 
 export interface SessionDocument extends Document {
   courseId: Types.ObjectId;
@@ -27,12 +29,13 @@ const SessionSchema = new Schema<SessionDocument>(
     },
     active: { type: Boolean, default: true },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 SessionSchema.index({ courseId: 1, active: 1 });
 
 const Session: Model<SessionDocument> =
-  mongoose.models.Session ?? mongoose.model<SessionDocument>("Session", SessionSchema);
+  mongoose.models.Session ??
+  mongoose.model<SessionDocument>("Session", SessionSchema);
 
 export default Session;
