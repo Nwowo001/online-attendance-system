@@ -12,7 +12,32 @@ import { z } from "zod";
 import toast from "react-hot-toast";
 import { IAttendance } from "@/types";
 import { formatDateTime } from "@/lib/utils";
-import { savePendingCheckin } from "@/lib/idb";
+import { savePendingCheckin, getPendingCheckins, markCheckinSynced } from "@/lib/idb";
+
+const getOrCreateDeviceId = () => {
+  if (typeof window === "undefined") return "unknown";
+  let id = localStorage.getItem("student_device_id");
+  if (!id) {
+    id = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("student_device_id", id);
+  }
+  return id;
+};
+
+const getCoordinates = async (): Promise<{ lat: number; lng: number } | undefined> => {
+  if (typeof window === "undefined" || !navigator.geolocation) return undefined;
+  try {
+    const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+      });
+    });
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  } catch {
+    return undefined;
+  }
+};
 
 const tokenSchema = z.object({
   token: z.string().min(6, "Token must be at least 6 characters").max(12),
@@ -71,11 +96,14 @@ export default function StudentAttendancePage() {
   }, []);
 
   const checkin = async (token: string) => {
+    const deviceId = getOrCreateDeviceId();
+    const geoLocation = await getCoordinates();
+
     try {
       const res = await fetch("/api/attendance/checkin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token }),
+        body: JSON.stringify({ token, deviceId, geoLocation }),
       });
       const json = await res.json();
       if (json.success) {
@@ -91,6 +119,47 @@ export default function StudentAttendancePage() {
       await savePendingCheckin(token, "offline");
     }
   };
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const syncOfflineCheckins = async () => {
+      if (!navigator.onLine) return;
+      try {
+        const pending = await getPendingCheckins();
+        if (pending.length === 0) return;
+
+        const deviceId = getOrCreateDeviceId();
+        const geoLocation = await getCoordinates();
+
+        for (const record of pending) {
+          try {
+            const res = await fetch("/api/attendance/checkin", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: record.token, deviceId, geoLocation }),
+            });
+            const json = await res.json();
+            if (json.success || json.error?.includes("Already checked in")) {
+              await markCheckinSynced(record.id);
+            }
+          } catch (err) {
+            console.error("Failed to sync record", record, err);
+          }
+        }
+        fetchAttendance();
+      } catch (err) {
+        console.error("Offline sync error", err);
+      }
+    };
+
+    window.addEventListener("online", syncOfflineCheckins);
+    syncOfflineCheckins();
+
+    return () => {
+      window.removeEventListener("online", syncOfflineCheckins);
+    };
+  }, [fetchAttendance]);
 
   const onTokenSubmit = async (data: TokenForm) => {
     await checkin(data.token.toUpperCase().trim());
