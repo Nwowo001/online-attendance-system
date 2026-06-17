@@ -9,6 +9,7 @@ export interface AttendanceDocument extends Document {
   deviceInfo?: string;
   ipAddress?: string;
   geoLocation?: { lat: number; lng: number };
+  deviceId: string;
 }
 
 const AttendanceSchema = new Schema<AttendanceDocument>(
@@ -24,11 +25,13 @@ const AttendanceSchema = new Schema<AttendanceDocument>(
     deviceInfo: String,
     ipAddress: String,
     geoLocation: { lat: Number, lng: Number },
+    deviceId: { type: String, required: true },
   },
   { timestamps: true },
 );
 
 AttendanceSchema.index({ sessionId: 1, studentId: 1 }, { unique: true });
+AttendanceSchema.index({ sessionId: 1, deviceId: 1 }, { unique: true });
 AttendanceSchema.index({ studentId: 1 });
 
 const Attendance: Model<AttendanceDocument> =

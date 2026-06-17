@@ -151,6 +151,46 @@ export default function UsersPage() {
           />
           <Input label="Department" {...register("department")} />
           <Input label="Matric Number" {...register("matricNumber")} />
+          
+          {editUser?.role === "student" && (
+            <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl flex items-center justify-between text-sm my-2">
+              <div>
+                <p className="font-medium text-gray-700 dark:text-gray-300">Device Lock Status</p>
+                <p className="text-xs text-gray-500 font-mono mt-0.5">
+                  {editUser.deviceId ? `Bound: ${editUser.deviceId.substring(0, 8)}...` : "No device bound"}
+                </p>
+              </div>
+              {editUser.deviceId && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch(`/api/users/${editUser._id}`, {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ deviceId: null }),
+                      });
+                      const json = await res.json();
+                      if (json.success) {
+                        toast.success("Device lock reset successfully");
+                        setEditUser({ ...editUser, deviceId: undefined });
+                        fetchUsers();
+                      } else {
+                        toast.error(json.error ?? "Failed to reset device");
+                      }
+                    } catch {
+                      toast.error("Failed to connect to server");
+                    }
+                  }}
+                >
+                  Reset Device
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-3 justify-end pt-2">
             <Button variant="secondary" type="button" onClick={() => setEditUser(null)}>Cancel</Button>
             <Button type="submit" loading={isSubmitting}>Save Changes</Button>

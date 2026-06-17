@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
-import { Select } from "@/components/ui/Input";
+import { Select, Input } from "@/components/ui/Input";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +19,8 @@ import Image from "next/image";
 const sessionSchema = z.object({
   courseId: z.string().min(1, "Select a course"),
   durationMinutes: z.coerce.number().min(1).max(480),
+  enableGeofence: z.boolean().default(false),
+  geoFenceRadius: z.coerce.number().min(10).max(1000).default(50),
 });
 type SessionForm = z.infer<typeof sessionSchema>;
 
@@ -40,11 +42,14 @@ function SessionsContent() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<SessionForm>({
     resolver: zodResolver(sessionSchema),
-    defaultValues: { courseId: preselectedCourse, durationMinutes: 60 },
+    defaultValues: { courseId: preselectedCourse, durationMinutes: 60, enableGeofence: false, geoFenceRadius: 50 },
   });
+
+  const watchEnableGeofence = watch("enableGeofence");
 
   const fetchSessions = useCallback(async () => {
     setLoading(true);
@@ -100,10 +105,34 @@ function SessionsContent() {
   }, [activeSession]);
 
   const onCreate = async (data: SessionForm) => {
+    let payload: any = {
+      courseId: data.courseId,
+      durationMinutes: data.durationMinutes,
+    };
+
+    if (data.enableGeofence) {
+      try {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+          });
+        });
+        payload.geoFence = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          radius: data.geoFenceRadius,
+        };
+      } catch (err: any) {
+        toast.error("Could not obtain location. Please enable location services in your browser.");
+        return;
+      }
+    }
+
     const res = await fetch("/api/sessions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
     const json = await res.json();
     if (json.success) {
@@ -262,6 +291,30 @@ function SessionsContent() {
             ]}
             {...register("durationMinutes")}
           />
+          <div className="space-y-2 border-t border-gray-100 dark:border-gray-800 pt-3">
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300 cursor-pointer">
+              <input
+                type="checkbox"
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                {...register("enableGeofence")}
+              />
+              Enable Geofencing (Classroom Presence Lock)
+            </label>
+          </div>
+
+          {watchEnableGeofence && (
+            <div className="pl-6">
+              <Input
+                type="number"
+                label="Geofence Radius (meters)"
+                error={errors.geoFenceRadius?.message}
+                {...register("geoFenceRadius")}
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Students must check in within this distance of your current coordinates. Recommended: 50m.
+              </p>
+            </div>
+          )}
           <div className="flex gap-3 justify-end pt-2">
             <Button
               variant="secondary"

@@ -15,7 +15,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     delete body.password;
 
     await connectDB();
-    const updated = await User.findByIdAndUpdate(id, body, { new: true });
+
+    let updateQuery: any = { ...body };
+    if (body.deviceId === null || body.deviceId === "") {
+      delete updateQuery.deviceId;
+      updateQuery.$unset = { deviceId: "" };
+    }
+
+    const updated = await User.findByIdAndUpdate(id, updateQuery, { new: true });
     if (!updated) return NextResponse.json({ success: false, error: "User not found" }, { status: 404 });
 
     return NextResponse.json({ success: true, data: updated });

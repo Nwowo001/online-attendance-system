@@ -8,6 +8,7 @@ export interface IUser {
   matricNumber?: string;
   department?: string;
   role: Role;
+  deviceId?: string;
   createdAt: string;
 }
 
@@ -47,6 +48,7 @@ export interface IAttendance {
   deviceInfo?: string;
   ipAddress?: string;
   geoLocation?: { lat: number; lng: number };
+  deviceId: string;
 }
 
 export interface JWTPayload {

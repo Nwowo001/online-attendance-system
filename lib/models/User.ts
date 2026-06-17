@@ -9,6 +9,7 @@ export interface UserDocument extends Document {
   matricNumber?: string;
   department?: string;
   role: Role;
+  deviceId?: string;
   createdAt: Date;
   comparePassword(candidate: string): Promise<boolean>;
 }
@@ -31,6 +32,7 @@ const UserSchema = new Schema<UserDocument>(
       enum: ["admin", "lecturer", "student"],
       default: "student",
     },
+    deviceId: { type: String, sparse: true },
   },
   { timestamps: true },
 );
