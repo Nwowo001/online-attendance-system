@@ -1,7 +1,12 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 
+import path from "path";
+
+// Load .env.local first if it exists, otherwise fallback to .env
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
+
 const MONGODB_URI = process.env.MONGODB_URI!;
 
 if (!MONGODB_URI)
