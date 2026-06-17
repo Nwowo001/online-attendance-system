@@ -2,9 +2,14 @@ import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 
+import path from "path";
+
+// Load .env.local first if it exists, otherwise fallback to .env
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 dotenv.config();
+
 const MONGODB_URI =
-  process.env.MONGODB_URI ?? "mongodb://localhost:27017/attendance-system";
+  process.env.MONGODB_URI ?? "mongodb://localhost:27017/attendance-dev";
 
 if (!process.env.MONGODB_URI) {
   console.warn("MONGODB_URI not set in environment, using default localhost");
